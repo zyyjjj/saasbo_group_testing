@@ -1,8 +1,11 @@
 import torch
 import numpy as np
+import time
 
 from botorch.sampling.normal import SobolQMCNormalSampler
 from botorch.utils.sampling import draw_sobol_samples
+
+from src.init_strategies import sequential_bifurcation, random_subset
 
 class Experiment:
 
@@ -11,11 +14,12 @@ class Experiment:
     """
 
     attr_list = {
-        "num_restarts": 20,
+        "n_bo_iters": 20,
         "verbose": False,
         "maxiter": 1000,
         "dtype": torch.double,
         "raw_samples": 128,
+        "num_restarts": 20,
         "batch_limit": 4,
         "n_initial_samples": 32
     }
@@ -43,8 +47,8 @@ class Experiment:
                 about which dimensions are important to the BO step;
                 if 'no_select': don't do anything;
                 if 'reduce_model': do BO on subset of input dimensions;
-                if 'modify_prior': make the lengthscale priors of the important dims
-                    concentrated at smaller values
+                if 'modify_saas_prior': make the lengthscale priors of the 
+                    important dims concentrated at smaller values in saas prior
             seed: random seed
             output_path: path to save the output
         """
@@ -57,6 +61,8 @@ class Experiment:
     def generate_initial_data(self, n):
         r"""
         Generate (input, outcome) data for initializing the GP before BO
+        TODO: this goes hand in hand with identifying important dimensions
+        So the goals are: get self.X, self.Y and self.important_dims
         """
         if self.init_strategy == "sobol":
             self.X = draw_sobol_samples(bounds = self.problem.bounds, n=1, q=n).squeeze(0)
@@ -73,7 +79,9 @@ class Experiment:
     def fit_gp(self):
         r"""
         Fit GP based on all data so far
+        
         """
+        # TODO: have proper error handling 
 
         pass
 
@@ -84,6 +92,15 @@ class Experiment:
         but must remember to implement the selection strategy)
         """
 
+        if self.selection_strategy == "no_select": 
+            pass
+        elif self.selection_strategy == "reduce_model": 
+            pass
+            # 
+        elif self.selection_strategy == "modify_saas_prior":
+            pass
+
+
         pass
 
 
@@ -91,6 +108,22 @@ class Experiment:
         r"""
         Run one iteration of BO 
         """
+        # TODO: or maybe run multiple BO iters in this function
         # TODO: time it
         # TODO: save the data after each iteration
-        pass
+        
+        
+        start_time = time.time()
+
+
+    def full_pipeline(self):
+        # TODO: overall structure is as follows, to flesh out
+
+        self.generate_initial_data(self.n_initial_samples)
+
+        # call fit_gp() and learn important dimensions
+        
+        # call pass_importance_information() 
+        
+        for _ in range(self.n_bo_iters):
+            self.one_bo_iteration()
