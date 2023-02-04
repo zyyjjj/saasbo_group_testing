@@ -1,16 +1,24 @@
-import torch
-import numpy as np
+import os
+import sys
 import time
 
+file_dir = os.path.dirname(__file__)
+sys.path.append(file_dir)
+sys.path.append(['..'])
+
+import numpy as np
+import torch
 from botorch.sampling.normal import SobolQMCNormalSampler
 from botorch.utils.sampling import draw_sobol_samples
 
-from src.init_strategies import sequential_bifurcation, random_subset
+from saasbo_group_testing.init_strategies import (random_subset,
+                                                  sequential_bifurcation)
+
 
 class Experiment:
 
     r"""
-    Runs one instance of an experiment.
+    Runs one instance of a BO experiment.
     """
 
     attr_list = {

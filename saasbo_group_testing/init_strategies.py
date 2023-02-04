@@ -59,9 +59,18 @@ def perturb_input_dims(
         dims_to_perturb: list of dimensions to perturb -- # TODO: can we do this in batch
         perturb_option: one of {'random', 'ub', 'lb'}
     """
-    # TODO: implement
 
-    pass
+    if perturb_option == "random":
+        perturb_vals = torch.rand(len(dims_to_perturb))
+    elif perturb_option == "ub":
+        perturb_vals = torch.ones(len(dims_to_perturb))
+    elif perturb_option == "lb":
+        perturb_vals = torch.zeros(len(dims_to_perturb))
+    
+    perturbed_input = status_quo_input.detach().clone()
+    perturbed_input[dims_to_perturb] = perturb_vals
+
+    return perturbed_input
 
 
 # Initialization strategies
@@ -103,7 +112,7 @@ def sequential_bifurcation(
 
     stack, X, Y, important_dims = [], [], [], []
 
-    x0 = np.array(problem._bounds.mean(dim = 1))
+    x0 = np.array(problem._bounds.mean(dim = 1)) # shape (`input_dim`,)
     y0 = problem(x0) # TODO: make sure we start with noiseless evals
     X.append(x0)
     Y.append(y0)
@@ -125,6 +134,10 @@ def sequential_bifurcation(
             else:
                 s_split = split_range(s, n_folds)
                 stack += s_split
+    
+    # turn list of tensors into tensor
+    X = torch.tensor(X)
+    Y = torch.tensor(Y)
     
     return X, Y, important_dims
 
@@ -164,7 +177,15 @@ def random_subset(
 
 
 if __name__ == "__main__":
-    print(split_range([1,2,3,4,5], 2))
-    print(split_range([1,2,3,4], 2))
-    print(split_range([1,2,3,4,5,6], 3))
-    print(split_range([1,2,3,4,5,6,7,8], 3))
+
+    # test split_range()
+    # print(split_range([1,2,3,4,5], 2))
+    # print(split_range([1,2,3,4], 2))
+    # print(split_range([1,2,3,4,5,6], 3))
+    # print(split_range([1,2,3,4,5,6,7,8], 3))
+
+
+    # test perturb_input_dims()
+    print(perturb_input_dims(torch.tensor([0.5, 0.5, 0.5]), [0, 1], "random"))
+    print(perturb_input_dims(torch.tensor([0.5, 0.5, 0.5]), [0, 1], "ub"))
+    print(perturb_input_dims(torch.tensor([0.5, 0.5, 0.5]), [0, 1], "lb"))
