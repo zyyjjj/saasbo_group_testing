@@ -1,16 +1,51 @@
+from typing import List
+
 import numpy as np
 import torch
 
 # Helper functions
 
-def split_range(s, n_folds = 2):
+def split_range(s: List, n_folds: int = 2) -> List[List]:
     r"""Split a list of numbers into `n_folds` equally sized chunks 
-    (up to rounding error). 
+    (up to rounding). 
     Return them as a list, storing the chunks from right to left.
+    Args:
+        s: list of numbers
+        n_folds: number of chunks we want to split list s into
+    Returns:
+        split_indices: nested list with `n_folds` sublists of s 
+            (mutually exclusive, collectively exhaustive, sizes differ by <= 1)
     """
-    # TODO: implement
 
-    pass
+    if len(s) <= n_folds:
+        # just return elements of s one by one
+        split_indices = [[s_] for s_ in s]
+
+    else:
+        # have a scheme for splitting the list 
+        n_incomplete_chunks = n_folds
+        base_chunk_size = len(s) // n_folds
+        n_incomplete_larger_chunks = len(s) % n_folds
+
+        split_indices = []
+        start_idx = 0
+        
+        while n_incomplete_chunks > 0:
+            if n_incomplete_larger_chunks > 0:
+                end_idx = start_idx + base_chunk_size + 1
+                n_incomplete_larger_chunks -= 1
+            else:
+                end_idx = start_idx + base_chunk_size
+            
+            split_indices.insert(0, s[start_idx : end_idx])
+
+            start_idx = end_idx
+            n_incomplete_chunks -= 1
+        
+        # when the loop terminates, we should exactly exhaust the list
+        assert end_idx == len(s), "end index does not match length of list s"
+
+    return split_indices
 
 def perturb_input_dims(
     status_quo_input: torch.Tensor, 
@@ -21,7 +56,7 @@ def perturb_input_dims(
     leaving the other dimensions intact.
     Args:
         status_quo_input: baseline input value to perturb from
-        dims_to_perturb: list of dimensions to perturb
+        dims_to_perturb: list of dimensions to perturb -- # TODO: can we do this in batch
         perturb_option: one of {'random', 'ub', 'lb'}
     """
     # TODO: implement
@@ -125,3 +160,11 @@ def random_subset(
     # TODO: choosing hyperparameter lambda in lasso
 
     pass
+
+
+
+if __name__ == "__main__":
+    print(split_range([1,2,3,4,5], 2))
+    print(split_range([1,2,3,4], 2))
+    print(split_range([1,2,3,4,5,6], 3))
+    print(split_range([1,2,3,4,5,6,7,8], 3))
