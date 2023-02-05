@@ -21,14 +21,12 @@ from saasbo_group_testing.test_problems.embedded_test_problem import \
 def select_important_dims_seq_bif(
     base_problem: torch.nn.Module, 
     emb_problem: torch.nn.Module,
-    input_dim: int,
     perturb_option: str,
     seed: int,
     n_folds: int = 2,
     verbose: bool = False
 ): 
 
-    
     X, Y, important_dims = sequential_bifurcation(
         problem=emb_problem, 
         perturb_option=perturb_option, 
