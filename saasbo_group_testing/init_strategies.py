@@ -71,6 +71,7 @@ def perturb_input_dims(
         perturb_vals = torch.ones(len(dims_to_perturb))
     elif perturb_option == "lb":
         perturb_vals = torch.zeros(len(dims_to_perturb))
+    # TODO: allow input domains that aren't necessarily [0,1]
     
     perturbed_input = status_quo_input.detach().clone()
     perturbed_input[dims_to_perturb] = perturb_vals
@@ -210,19 +211,3 @@ def random_subset(
     # TODO: choosing hyperparameter lambda in lasso
 
     pass
-
-
-
-if __name__ == "__main__":
-
-    # test split_range()
-    # print(split_range([1,2,3,4,5], 2))
-    # print(split_range([1,2,3,4], 2))
-    # print(split_range([1,2,3,4,5,6], 3))
-    # print(split_range([1,2,3,4,5,6,7,8], 3))
-
-
-    # test perturb_input_dims()
-    print(perturb_input_dims(torch.tensor([0.5, 0.5, 0.5]), [0, 1], "random"))
-    print(perturb_input_dims(torch.tensor([0.5, 0.5, 0.5]), [0, 1], "ub"))
-    print(perturb_input_dims(torch.tensor([0.5, 0.5, 0.5]), [0, 1], "lb"))
