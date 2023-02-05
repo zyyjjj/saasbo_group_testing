@@ -10,9 +10,9 @@ import numpy as np
 import torch
 from botorch.test_functions.synthetic import Hartmann
 
-from saasbo_group_testing.init_strategies import (perturb_input_dims,
-                                                  sequential_bifurcation,
-                                                  split_range)
+from saasbo_group_testing.src.init_strategies import (perturb_input_dims,
+                                                      sequential_bifurcation,
+                                                      split_range)
 from saasbo_group_testing.test_problems.embedded_test_problem import \
     EmbeddedTestProblem
 

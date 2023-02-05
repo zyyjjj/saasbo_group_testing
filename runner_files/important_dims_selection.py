@@ -11,11 +11,25 @@ import torch
 from botorch.test_functions import Hartmann
 
 from saasbo_group_testing.experiment import Experiment
-from saasbo_group_testing.init_strategies import (perturb_input_dims,
-                                                  sequential_bifurcation,
-                                                  split_range)
+from saasbo_group_testing.src.init_strategies import (perturb_input_dims,
+                                                      sequential_bifurcation,
+                                                      split_range)
 from saasbo_group_testing.test_problems.embedded_test_problem import \
     EmbeddedTestProblem
+
+
+def select_important_dims_saasgp(
+
+):
+
+    # either fully Bayesian inference using NUTS 
+    # or MLE (add saas prior, then fit gpytorch scipy)
+
+    # should call code under src/saasgp.py
+
+
+    pass
+
 
 
 def select_important_dims_seq_bif(
