@@ -1,7 +1,8 @@
-from typing import List
+from typing import List, Tuple
 
 import numpy as np
 import torch
+from torch import Tensor
 
 # Helper functions
 
@@ -48,10 +49,10 @@ def split_range(s: List, n_folds: int = 2) -> List[List]:
     return split_indices
 
 def perturb_input_dims(
-    status_quo_input: torch.Tensor, 
+    status_quo_input: Tensor, 
     dims_to_perturb: list, 
     perturb_option: str
-):
+) -> Tensor:
     r"""Perturb specified dimensions of a given status quo tensor, while
     leaving the other dimensions intact.
     Args:
@@ -79,66 +80,88 @@ def sequential_bifurcation(
     problem: torch.nn.Module, 
     perturb_option: str, 
     n_folds: int = 2
-):
+) -> Tuple[Tensor, Tensor, List]:
     r"""Implement the initialization strategy `sequential bifurcation` to 
     identify important input dimensions adaptively.
     Let d denote the input dimension of problem.
+
     Concretely, the algorithm proceeds as follows:
     - first evaluate the problem at the center of the input domain x0; 
         call the observed outcome value y0; store this datapoint
     - have an empty stack for sets of dimensions to perturb,
-    - initialize the stack to contain range(d//2) and range(d//2, d)
+    - initialize the stack with `n_folds` equally sized sublists of range(d),
+        ordered from right to left
     - while the stack is not empty:
         - pop the last element s from the stack
         - evaluate the problem at an input point where the input dims in s are 
             perturbed (either random or set to upper bound) and other input dims
             stay at the center of the domain; store this datapoint
         - if f(s) != y0: 
-            - if s has >1 element: append two new elements to the stack, which 
-                are the first and second half of the entries in s, respectively
+            - if s has >1 element: append `n_folds` equally sized sublists of 
+                s to the stack, ordered from right to left
             - elif s has 1 element: record the element in s as important
-    (NOTE: to make this preorder traversal, append the right half first)
     - return the evaluated input points, observed values, and important dims
 
+    NOTE: 
+    When `n_folds=2`, this is equivalent to preorder traversal (root-left-right) 
+    of a binary tree. The nodes of the tree are the sets of indices to perturb; 
+    a node is a leaf node if it does not contain any important dims; a node 
+    further branches into two children if it contains at least one important dim.
+    Since we append the right child first to the stack, we pop out and evaluate
+    the left child before the right child, resulting in root-left-right order.
+
     Args:
-        problem:
-        perturb_option:
-        n_folds:
+        problem: high-dimensional test problem
+        perturb_option: one of {'random', 'ub', 'lb'} to perturb the input dims.
+            If 'random', set to numbers sampled uniform at random from the 
+                respective domains of the dims;
+            if 'ub', set to upper bounds of the respective domains of the dims;
+            if 'lb', set to lower bounds of the respective domains of the dims. 
+        n_folds: number of folds to split each set of indices into. Default 2. 
     Returns:
-        X:
-        Y:
-        important_dims:
+        X: tensor of evaluated inputs
+        Y: tensor of observations at evaluated inputs
+        important_dims: list of identified important dims
     """
 
     stack, X, Y, important_dims = [], [], [], []
-
-    x0 = np.array(problem._bounds.mean(dim = 1)) # shape (`input_dim`,)
+    
+    x0 = torch.tensor(problem._bounds).mean(dim=1) # shape (`input_dim`,)
     y0 = problem(x0) # TODO: make sure we start with noiseless evals
     X.append(x0)
     Y.append(y0)
 
-    stack.append(split_range(problem.dim//2, problem.dim))
-    stack.append(split_range(problem.dim//2))
+    print("observation of baseline input: ", y0)
+
+    stack += split_range(list(range(problem.dim)))
 
     while stack:
         s = stack.pop()
+        print("popped set of indices: ", s)
         x = perturb_input_dims(x0, s, perturb_option)
         y = problem(x)
+        print("evaluation of perturbed x: ", y)
         X.append(x)
         Y.append(y)
         
         if y != y0: 
         # TODO: alternatively, if error norm is less than some tolerance
+            print("there exists >=1 important dim in current set of indices")
             if len(s) == 1:
+                print(f"Identified {s[0]} as important dim!")
                 important_dims.append(s[0])
             else:
                 s_split = split_range(s, n_folds)
                 stack += s_split
+        else:
+            print("No important dim in current set of indices")
     
+    print("while loop terminates, stack empty")
+
     # turn list of tensors into tensor
-    X = torch.tensor(X)
-    Y = torch.tensor(Y)
-    
+    X = torch.stack(X)
+    Y = torch.stack(Y)
+
     return X, Y, important_dims
 
 

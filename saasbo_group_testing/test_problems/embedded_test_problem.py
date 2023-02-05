@@ -26,7 +26,6 @@ class EmbeddedTestProblem(BaseTestProblem):
             noise_std: magnitude of independent noise to add to input dims
         """
 
-        self.dim = input_dim
 
         # sample embedding indices for the base input dims from range(input_dim)
         emb_indices = np.random.choice(
@@ -41,6 +40,9 @@ class EmbeddedTestProblem(BaseTestProblem):
             noise_std = noise_std, 
             negate = base_problem.negate
         ) 
+
+        self.dim = input_dim
+
 
         self.base_problem = base_problem
         self.emb_indices = emb_indices
