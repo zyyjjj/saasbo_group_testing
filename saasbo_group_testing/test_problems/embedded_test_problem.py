@@ -1,5 +1,6 @@
 import os
 import sys
+from typing import Optional
 
 import numpy as np
 import torch
@@ -18,6 +19,7 @@ class EmbeddedTestProblem(BaseTestProblem):
         input_dim: int,
         base_problem: torch.nn.Module,
         noise_std: float = 0,
+        seed: Optional[int] = None
     ):
         r"""
         Args:
@@ -26,6 +28,8 @@ class EmbeddedTestProblem(BaseTestProblem):
             noise_std: magnitude of independent noise to add to input dims
         """
 
+        if seed is not None:
+            np.random.seed(seed)
 
         # sample embedding indices for the base input dims from range(input_dim)
         emb_indices = np.random.choice(

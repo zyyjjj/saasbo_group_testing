@@ -1,4 +1,4 @@
-from typing import List, Tuple
+from typing import List, Optional, Tuple
 
 import numpy as np
 import torch
@@ -51,7 +51,8 @@ def split_range(s: List, n_folds: int = 2) -> List[List]:
 def perturb_input_dims(
     status_quo_input: Tensor, 
     dims_to_perturb: list, 
-    perturb_option: str
+    perturb_option: str,
+    seed: Optional[int] = None
 ) -> Tensor:
     r"""Perturb specified dimensions of a given status quo tensor, while
     leaving the other dimensions intact.
@@ -60,6 +61,9 @@ def perturb_input_dims(
         dims_to_perturb: list of dimensions to perturb -- # TODO: can we do this in batch
         perturb_option: one of {'random', 'ub', 'lb'}
     """
+
+    if seed is not None:
+        torch.manual_seed(seed)
 
     if perturb_option == "random":
         perturb_vals = torch.rand(len(dims_to_perturb))
@@ -79,7 +83,9 @@ def perturb_input_dims(
 def sequential_bifurcation(
     problem: torch.nn.Module, 
     perturb_option: str, 
-    n_folds: int = 2
+    n_folds: int = 2,
+    seed: Optional[int] = None,
+    verbose: bool = True
 ) -> Tuple[Tensor, Tensor, List]:
     r"""Implement the initialization strategy `sequential bifurcation` to 
     identify important input dimensions adaptively.
@@ -137,16 +143,25 @@ def sequential_bifurcation(
 
     while stack:
         s = stack.pop()
-        print("popped set of indices: ", s)
-        x = perturb_input_dims(x0, s, perturb_option)
+        
+        x = perturb_input_dims(
+            status_quo_input = x0, 
+            dims_to_perturb = s, 
+            perturb_option = perturb_option, 
+            seed=seed)
         y = problem(x)
-        print("evaluation of perturbed x: ", y)
+
+        if verbose: 
+            print("popped set of indices: ", s)
+            print("evaluation of perturbed x: ", y)
+        
         X.append(x)
         Y.append(y)
         
         if y != y0: 
         # TODO: alternatively, if error norm is less than some tolerance
-            print("there exists >=1 important dim in current set of indices")
+            if verbose: 
+                print("There exists >=1 important dim in current set of indices")
             if len(s) == 1:
                 print(f"Identified {s[0]} as important dim!")
                 important_dims.append(s[0])
@@ -154,10 +169,9 @@ def sequential_bifurcation(
                 s_split = split_range(s, n_folds)
                 stack += s_split
         else:
-            print("No important dim in current set of indices")
+            if verbose:
+                print("No important dim in current set of indices")
     
-    print("while loop terminates, stack empty")
-
     # turn list of tensors into tensor
     X = torch.stack(X)
     Y = torch.stack(Y)
