@@ -152,7 +152,7 @@ def saasgp(
             # )
             fit_gpytorch_mll(mll)
 
-            lengthscales = gp.covar_module.base_kernel.lengthscale
+            lengthscales = gp.covar_module.base_kernel.lengthscale.squeeze(0)
 
         elif inference_method == "nuts":
             gp = SaasFullyBayesianSingleTaskGP(train_X=train_X, train_Y=train_Y)
@@ -168,7 +168,7 @@ def saasgp(
                 **nuts_options
             )
 
-            lengthscales = gp.median_lengthscale.detach()
+            lengthscales = gp.median_lengthscale.detach().squeeze(0)
 
         # get sorted dim indices by lengthscale in ascending order
         # if lengthscales[i] is the nth smallest entry, then dims_ordered[n] = i
