@@ -211,3 +211,35 @@ def random_subset(
     # TODO: choosing hyperparameter lambda in lasso
 
     pass
+
+def oracle(
+    problem: torch.nn.Module,
+    perturb_option: str
+):
+
+    r"""
+    Perturb the true important dims one by one. # TODO explain more
+    """
+
+    emb_indices = problem.emb_indices
+
+    X, Y = [], []
+    
+    x0 = torch.tensor(problem._bounds).mean(dim=1) # shape (`input_dim`,)
+    y0 = problem(x0) # TODO: make sure we start with noiseless evals
+    X.append(x0)
+    Y.append(y0)
+
+    for index in emb_indices:
+        x = perturb_input_dims(
+            status_quo_input=x0,
+            dims_to_perturb=[index],
+            perturb_option=perturb_option
+        )
+        X.append(x)
+        Y.append(problem(x))
+    
+    X = torch.stack(X)
+    Y = torch.stack(Y)
+
+    return X, Y

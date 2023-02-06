@@ -1,8 +1,16 @@
+import os
+import sys
+
+file_dir = os.path.dirname(__file__)
+sys.path.append(file_dir)
+sys.path.append(['..'])
+sys.path.append("/home/yz685/saasbo_group_testing")
+
 from typing import List, Optional
 
 import torch
 from botorch.exceptions.errors import UnsupportedError
-from botorch.fit import fit_fully_bayesian_model_nuts
+from botorch.fit import fit_fully_bayesian_model_nuts, fit_gpytorch_mll
 from botorch.models import FixedNoiseGP
 from botorch.models.fully_bayesian import SaasFullyBayesianSingleTaskGP
 from botorch.optim.fit import fit_gpytorch_scipy
@@ -11,6 +19,11 @@ from botorch.utils.sampling import draw_sobol_samples
 from gpytorch.kernels import Kernel, MaternKernel, ScaleKernel
 from gpytorch.mlls import ExactMarginalLogLikelihood
 from gpytorch.priors import HalfCauchyPrior
+from torch import Tensor
+
+from saasbo_group_testing.src.init_strategies import oracle
+from saasbo_group_testing.test_problems.embedded_test_problem import \
+    EmbeddedTestProblem
 
 
 # code credit to David
@@ -68,9 +81,10 @@ def add_saas_prior(
 def saasgp(
     problem: torch.nn.Module,
     n_samples: int, # TODO: the goal is to log intermediate LS inferences too
-    topk: int,
     inference_method: str,
     checkpoints: Optional[List] = None,
+    verbose: bool = False,
+    init_X: Optional[Tensor] = None,
     **kwargs
 ):
     r"""
@@ -80,10 +94,11 @@ def saasgp(
     Args:
         problem: test problem
         n_init_samples: number of samples to take 
-        topk: the number of smallest lengthscales to select
         inference_method: one of {'mle', 'nuts'}
         checkpoints: list of fractions at which we want to pause and examine 
             inferred lengthscales
+        verbose: if True, print more information
+        init_X: if supplied, use it as the training input
     Returns:
         train_X:
         train_Y:
@@ -91,13 +106,19 @@ def saasgp(
 
     """
 
-    train_X = draw_sobol_samples(
-        bounds=problem.bounds,
-        n=1,
-        q=n_samples
-    ).squeeze(0)
+    if init_X is not None:
+        train_X = init_X
+    else:
+        train_X = draw_sobol_samples(
+            bounds=problem.bounds,
+            n=1,
+            q=n_samples
+        ).squeeze(0)
 
     train_Y = problem(train_X)
+    if len(train_Y.shape) < len(train_X.shape):
+        train_Y = train_Y.unsqueeze(1)
+        # train_Y = (train_Y - train_Y.mean()) / train_Y.std() # TODO: ?
 
     print("train_X, train_Y shape: ", train_X.shape, train_Y.shape)
 
@@ -114,20 +135,22 @@ def saasgp(
     # progressively increase training data size
     for checkpoint in checkpoints:
         datasize = int(n_samples * checkpoint)
+        print(f"fitting on first {datasize} points")
 
         if inference_method == "mle":
 
             gp = FixedNoiseGP(
                     train_X=train_X[:datasize, :],
                     train_Y=train_Y[:datasize, :],
-                    train_Yvar=1e-6 * torch.ones_like(train_Y[:datasize, :]),
+                    train_Yvar=1e-8 * torch.ones_like(train_Y[:datasize, :]),
                     covar_module=covar_module,
                 )
             mll = ExactMarginalLogLikelihood(model=gp, likelihood=gp.likelihood)
             base_kernel._set_lengthscale(1e3)  # Initialize to 1e3, i.e., all being unimportant
-            fit_gpytorch_scipy(
-                mll, bounds={"model.covar_module.base_kernel.raw_lengthscale": [0.1, 1e3]}
-            )
+            # fit_gpytorch_scipy(
+            #     mll, bounds={"model.covar_module.base_kernel.raw_lengthscale": [0.1, 1e3]}
+            # )
+            fit_gpytorch_mll(mll)
 
             lengthscales = gp.covar_module.base_kernel.lengthscale
 
@@ -161,5 +184,37 @@ def saasgp(
             "ranking": ranking
         }
 
+        if verbose:
+            print("lengthscales: ", lengthscales)
+            print("dims_ordered: ", dims_ordered)
+            
+        if datasize > train_X.shape[0]:
+            break
+
     return res
 
+
+
+
+if __name__ == "__main__":
+
+    base_problem = Hartmann()
+
+    emb_problem = EmbeddedTestProblem(
+        input_dim=50, base_problem=base_problem, seed=0
+    )
+
+    print("true indices of important dims: ", emb_problem.emb_indices)
+
+    oracle_init_X, _ = oracle(emb_problem, perturb_option="ub")
+    oracle_init_X = oracle_init_X.to(torch.double)
+
+    saasgp(
+        problem=emb_problem,
+        n_samples=50,
+        # inference_method="mle", # incredibly slow, don't know why
+        inference_method="nuts", # also incredibly slow, don't know why
+        checkpoints=[0.5, 1],
+        verbose=True,
+        # init_X=oracle_init_X
+    )

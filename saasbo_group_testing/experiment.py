@@ -11,9 +11,11 @@ import torch
 from botorch.sampling.normal import SobolQMCNormalSampler
 from botorch.utils.sampling import draw_sobol_samples
 
-from saasbo_group_testing.init_strategies import (random_subset,
-                                                  sequential_bifurcation)
+from saasbo_group_testing.src.init_strategies import (random_subset,
+                                                      sequential_bifurcation)
 
+# Stage 1: just look at model fit (MSE on test set; fraction correctly identified)
+# Stage 2: look at how the selection helps BO performance
 
 class Experiment:
 
