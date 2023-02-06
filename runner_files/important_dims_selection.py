@@ -132,7 +132,7 @@ def wrapper(
 
 if __name__ == "__main__":
 
-    N_TRIALS = 20
+    N_TRIALS = 100
 
     wrapper(
         base_problem_name="hartmann",
